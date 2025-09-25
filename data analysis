@@ -1,0 +1,116 @@
+# download below the data for this study
+#https://docs.google.com/file/d/136I2cL4gzxsU9RnVJlELBPpV-8EgKehh/edit?usp=docslist_api&filetype=msexcel
+
+# Install packages if needed (run once)
+if (!require(readxl)) install.packages("readxl")
+if (!require(tidyverse)) install.packages("tidyverse")
+if (!require(corrplot)) install.packages("corrplot")
+
+# Load libraries
+library(readxl)
+library(tidyverse)
+library(corrplot)
+library(ggplot2)
+
+# Step 1: Data Loading and Cleaning
+# Read from Excel directly (Sheet 1, named "in" based on your doc)
+data <- read_excel("hw1_dataNext project .xlsx", sheet = "in", na = "NA")
+
+# Check for missing values
+missing_values <- colSums(is.na(data))
+print("Missing Values per Column:")
+print(missing_values)
+
+# Impute missing values with median for numerical columns
+data_clean <- data %>%
+  mutate(
+    Ozone = ifelse(is.na(Ozone), median(Ozone, na.rm = TRUE), Ozone),
+    `Solar.R` = ifelse(is.na(`Solar.R`), median(`Solar.R`, na.rm = TRUE), `Solar.R`),
+    Wind = ifelse(is.na(Wind), median(Wind, na.rm = TRUE), Wind),
+    Temp = ifelse(is.na(Temp), median(Temp, na.rm = TRUE), Temp)
+  )
+
+# Step 2: Summary Statistics
+summary_stats <- summary(data_clean)
+print("Summary Statistics:")
+print(summary_stats)
+
+# Step 3: Correlation Analysis
+cor_matrix <- cor(data_clean[, c("Ozone", "Solar.R", "Wind", "Temp")], use = "complete.obs")
+print("Correlation Matrix:")
+print(cor_matrix)
+
+# Plot correlation matrix (saves to PDF if no display, or shows in RStudio)
+pdf("correlation_matrix.pdf")  # Optional: save to file
+corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black", tl.cex = 0.8)
+dev.off()
+
+# Step 4: Exploratory Data Analysis (EDA) - Four Plots
+# Plot 1: Ozone vs Temperature
+p1 <- ggplot(data_clean, aes(x = Temp, y = Ozone)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Ozone vs Temperature", x = "Temperature (°F)", y = "Ozone (ppb)")
+
+# Plot 2: Ozone levels by Month (Boxplot)
+p2 <- ggplot(data_clean, aes(x = factor(Month), y = Ozone)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Ozone Levels by Month", x = "Month", y = "Ozone (ppb)")
+
+# Plot 3: Wind vs Ozone
+p3 <- ggplot(data_clean, aes(x = Wind, y = Ozone)) +
+  geom_point(color = "green", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Ozone vs Wind Speed", x = "Wind Speed (mph)", y = "Ozone (ppb)")
+
+# Plot 4: Solar Radiation vs Ozone
+p4 <- ggplot(data_clean, aes(x = `Solar.R`, y = Ozone)) +
+  geom_point(color = "purple", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Ozone vs Solar Radiation", x = "Solar Radiation (lang)", y = "Ozone (ppb)")
+
+# Display plots (in RStudio) or save to files
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+
+# Optional: Save plots to PDF
+ggsave("ozone_temp.pdf", p1)
+ggsave("ozone_month.pdf", p2)
+ggsave("ozone_wind.pdf", p3)
+ggsave("ozone_solar.pdf", p4)
+
+# Step 5: Linear Regression Model
+# Fit linear model
+lm_model <- lm(Ozone ~ `Solar.R` + Wind + Temp, data = data_clean)
+summary_lm <- summary(lm_model)
+print("Linear Regression Model Summary:")
+print(summary_lm)
+
+# Step 6: Monthly Trends
+monthly_means <- data_clean %>%
+  group_by(Month) %>%
+  summarise(
+    Avg_Ozone = mean(Ozone, na.rm = TRUE),
+    Avg_Solar.R = mean(`Solar.R`, na.rm = TRUE),
+    Avg_Wind = mean(Wind, na.rm = TRUE),
+    Avg_Temp = mean(Temp, na.rm = TRUE),
+    .groups = 'drop'
+  )
+print("Monthly Means:")
+print(monthly_means)
+
+# Sixth Visualization: Monthly Average Ozone Line Plot
+p6 <- ggplot(monthly_means, aes(x = Month, y = Avg_Ozone, group = 1)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Average Ozone Levels by Month", x = "Month", y = "Average Ozone (ppb)")
+
+print(p6)
+ggsave("monthly_ozone_line.pdf", p6)
